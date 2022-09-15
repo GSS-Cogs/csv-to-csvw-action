@@ -8,11 +8,12 @@ inputs:
   commit-outputs:
     description: Boolean indicating whether the outputs should be committed to the out folder (default is true).
     default: true
+    required: false
   publish-to-gh-pages:
     description: Boolean indicating whether the outputs should be published to GitHub Pages (default is true).
-    required: false
     default: true
-
+    required: false
+    
 on:
   push:
     branches:
@@ -143,10 +144,10 @@ runs:
               echo "Building CSV-W"
               if [[ -f $config_file ]]; then
                 echo "Config for ${csv_file} is available: ${config_file}"
-                csvcubed build $csv_file -c $config_file --out $out_path --validation-errors-to-file
+                csvcubed build "$csv_file" -c "$config_file" --out "$out_path" --validation-errors-to-file
               else
                 echo "Config for ${csv_file} is not available"
-                csvcubed build $csv_file --out $out_path --validation-errors-to-file
+                csvcubed build "$csv_file" --out "$out_path" --validation-errors-to-file
               fi
               
               echo "---Inspecting CSV-W"
@@ -157,7 +158,7 @@ runs:
                 inspect_file_name="${inspect_file##*/}"                  
                 inspect_output_file="${out_path}${inspect_file_name}_inspect_output.txt"
 
-                csvcubed inspect $inspect_file > $inspect_output_file
+                csvcubed inspect "$inspect_file" > "$inspect_output_file"
               done
               
               processed_files+=($csv_file)
@@ -167,7 +168,7 @@ runs:
               echo "::set-output name=has_outputs::${{ toJSON(true) }}"
               
               echo "---Finished Processing File: ${file}"
-              echo "======================"
+              echo "======================"                
             fi
           fi
         done
@@ -188,7 +189,7 @@ runs:
             root_file=true
           fi
           file_without_extension="${file%.*}"
-          file_name="${file##*/}"
+          file_name="${file_without_extension##*/}"
           file_extension="${file##*.}"
 
           # Detecting the top folder from the file path. E.g. csv/ is the top folder when the path is csv/sub-folder/my-data.csv
@@ -224,13 +225,13 @@ runs:
           
           if [[ -f $config_file ]]; then
             echo "config file exists, hence deleting."
-            git rm $config_file
+            git rm "$config_file"
             git commit -m "Deleted config file for file ${file} - $(date +'%d-%m-%Y at %H:%M:%S')"
           fi
 
           if [[ -d $out_folder ]]; then
             echo "outputs exist, hence deleting."
-            git rm -r $out_folder
+            git rm -r "$out_folder"
             git commit -m "Deleted outputs for file ${file} - $(date +'%d-%m-%Y at %H:%M:%S')"
           fi
           
@@ -250,10 +251,9 @@ runs:
 
     - name: Commit generated CSV-Ws and logs to the repository
       #if: ${{ fromJSON(steps.build-and-inspect-files.outputs.has_outputs) == true }}
-      if: ${{ (fromJSON(steps.build-and-inspect-inputs.outputs.has_outputs) == true) && (fromJSON(inputs.commit-outputs) == true) }}
+      if: ${{ (fromJSON(steps.build-and-inspect-files.outputs.has_outputs) == true) && (fromJSON(inputs.commit-outputs) == true) }}
       run: |
         echo "--Commiting Outputs to Main Branch"
-        #echo "commit-outputs: ${{ fromJSON(inputs.commit-outputs) }}"
 
         git add out/
         git commit -m "Outputs generated from csv upload - $(date +'%d-%m-%Y at %H:%M:%S')"
@@ -262,11 +262,10 @@ runs:
 
     - name: Publish CSV-Ws and logs to GitHub Pages
       #if: ${{ fromJSON(steps.build-and-inspect-files.outputs.has_outputs) == true }}
-      if: ${{ (fromJSON(steps.build-and-inspect-inputs.outputs.has_outputs) == true) && (fromJSON(inputs.publish-to-gh-pages) == true) }}
+      if: ${{ (fromJSON(steps.build-and-inspect-files.outputs.has_outputs) == true) && (fromJSON(inputs.publish-to-gh-pages) == true) }}
       run: |
         echo "--Publishing Output to GitHub Pages"
-        #echo "publish-to-gh-pages: ${{ fromJSON(inputs.publish-to-gh-pages) }}"
-
+        
         git checkout -b gh-pages
         rm -r LICENSE
         rm -r README.md
